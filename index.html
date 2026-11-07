@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Mystical Tarot</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- FontAwesome for celestial symbols -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Quicksand:wght@300;400;600&display=swap');
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background-color: #0b0612;
+            color: #e2d8f0;
+            overflow-x: hidden;
+            perspective: 1000px;
+        }
+
+        .font-cinzel {
+            font-family: 'Cinzel Decorative', serif;
+        }
+
+        /* Ambient Glows */
+        .gold-glow {
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.4), inset 0 0 15px rgba(212, 175, 55, 0.2);
+        }
+
+        .gold-text-glow {
+            text-shadow: 0 0 12px rgba(212, 175, 55, 0.6);
+        }
+
+        .purple-glow {
+            box-shadow: 0 0 30px rgba(147, 51, 234, 0.35);
+        }
+
+        /* Card styles & 3D Flip */
+        .card-container {
+            perspective: 1200px;
+            transform-style: preserve-3d;
+        }
+
+        .tarot-card {
+            width: 140px;
+            height: 240px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+
+        @media (min-width: 768px) {
+            .tarot-card {
+                width: 160px;
+                height: 280px;
+            }
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            border: 2px solid #d4af37;
+            box-sizing: border-box;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+        }
+
+        .card-back {
+            background: linear-gradient(135deg, #1a0033 0%, #0b0612 50%, #2d0b5a 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-front {
+            transform: rotateY(180deg);
+            background-color: #1a162b;
+        }
+
+        .tarot-card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .tarot-card.reversed .card-front img {
+            transform: rotate(180deg);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0612;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2d0b5a;
+            border-radius: 4px;
+            border: 1px solid #d4af37;
+        }
+
+        /* Celestial Pulse Animations */
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-12px) rotate(3deg); }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; filter: drop-shadow(0 0 15px #d4af37); }
+            50% { opacity: 0.8; filter: drop-shadow(0 0 30px #ffd700); }
+        }
+
+        .celestial-sun {
+            animation: floatSlow 8s ease-in-out infinite, pulseGlow 4s ease-in-out infinite;
+        }
+
+        .celestial-moon {
+            animation: floatSlow 10s ease-in-out infinite reverse, pulseGlow 5s ease-in-out infinite 1s;
+        }
+    </style>
+</head>
+<body class="min-h-screen relative flex flex-col justify-between selection:bg-purple-900 selection:text-amber-300">
+
+    <!-- Starry Background Canvas -->
+    <canvas id="starsCanvas" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+    <!-- Celestial Background Ornaments -->
+    <div class="fixed top-6 left-6 md:top-12 md:left-12 text-amber-400/30 pointer-events-none z-0 celestial-sun">
+        <svg class="w-24 h-24 md:w-40 md:h-40" viewBox="0 0 100 100" fill="currentColor">
+            <circle cx="50" cy="50" r="20" />
+            <g stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="50" y1="5" x2="50" y2="20" />
+                <line x1="50" y1="80" x2="50" y2="95" />
+                <line x1="5" y1="50" x2="20" y2="50" />
+                <line x1="80" y1="50" x2="95" y2="50" />
+                <line x1="18" y1="18" x2="29" y2="29" />
+                <line x1="71" y1="71" x2="82" y2="82" />
+                <line x1="18" y1="82" x2="29" y2="71" />
+                <line x1="71" y1="29" x2="82" y2="18" />
+            </g>
+        </svg>
+    </div>
+
+    <div class="fixed top-6 right-6 md:top-12 md:right-12 text-purple-400/30 pointer-events-none z-0 celestial-moon">
+        <svg class="w-20 h-20 md:w-36 md:h-36" viewBox="0 0 100 100" fill="currentColor">
+            <path d="M50,10 A40,40 0 1,0 90,50 A30,30 0 1,1 50,10 Z" />
+        </svg>
+    </div>
+
+    <!-- Main Container with 3D Tilt Reactivity -->
+    <div id="tiltContainer" class="relative z-10 container mx-auto px-4 py-8 flex flex-col items-center max-w-6xl transition-transform duration-200 ease-out">
+        
+        <!-- Controls & Question Input (No Title Header) -->
+        <div class="w-full max-w-3xl backdrop-blur-md bg-purple-950/40 border border-amber-500/30 rounded-2xl p-6 shadow-2xl mb-8 purple-glow">
+            
+            <div class="space-y-4">
+                <!-- Question Input -->
+                <div class="relative">
+                    <label for="questionInput" class="block text-xs uppercase tracking-widest text-amber-300/80 mb-2 font-cinzel">Câu hỏi của bạn với vũ trụ:</label>
+                    <div class="relative">
+                        <input type="text" id="questionInput" 
+                               placeholder="Ví dụ: Tình duyên sắp tới của tôi sẽ ra sao? Hoặc Tôi có nên thay đổi công việc hiện tại?" 
+                               class="w-full bg-slate-950/80 border border-amber-500/40 rounded-xl px-4 py-3.5 text-amber-100 placeholder-purple-400/50 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/30 text-sm md:text-base pr-10 transition-all">
+                        <i data-lucide="sparkles" class="absolute right-3.5 top-3.5 w-5 h-5 text-amber-400/60 pointer-events-none"></i>
+                    </div>
+                </div>
+
+                <!-- Card Count Selector & Action Buttons -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                    <div class="flex items-center space-x-3 w-full sm:w-auto">
+                        <span class="text-xs uppercase tracking-wider text-amber-300/80 font-cinzel whitespace-nowrap">Số lượng lá:</span>
+                        <div class="grid grid-cols-9 gap-1 w-full sm:w-auto" id="cardCountGroup">
+                            <!-- Buttons 1 to 9 populated via JS -->
+                        </div>
+                    </div>
+
+                    <button id="drawBtn" class="w-full sm:w-auto bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 hover:from-amber-500 hover:to-yellow-400 text-slate-950 font-bold px-8 py-3.5 rounded-xl shadow-lg hover:shadow-amber-500/50 transition-all duration-300 flex items-center justify-center space-x-2 font-cinzel tracking-wider text-sm">
+                        <i data-lucide="orbit" class="w-4 h-4"></i>
+                        <span>SÁO & BỐC BÀI</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3D Shuffling & Spread Canvas Area -->
+        <div id="deckArea" class="w-full min-h-[340px] flex items-center justify-center relative my-4 perspective-1000">
+            <!-- Dynamic tarot cards will be rendered here -->
+            <div id="cardsLayout" class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 w-full py-4 min-h-[290px]">
+                <div class="text-center text-purple-300/60 font-cinzel text-sm animate-pulse flex flex-col items-center">
+                    <i data-lucide="sparkles" class="w-10 h-10 mb-2 text-amber-400/40"></i>
+                    <span>Hãy nhập câu hỏi, chọn số lượng lá và nhấn nút Sáo Bài</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Reading Interpretation Box -->
+        <div id="readingSection" class="w-full max-w-4xl mt-6 hidden">
+            <div class="backdrop-blur-md bg-purple-950/60 border border-amber-500/40 rounded-2xl p-6 sm:p-8 shadow-2xl gold-glow relative overflow-hidden">
+                
+                <div class="flex items-center space-x-3 mb-6 border-b border-amber-500/20 pb-4">
+                    <div class="p-2 bg-amber-500/10 rounded-lg border border-amber-500/30">
+                        <i data-lucide="eye" class="w-6 h-6 text-amber-400"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-cinzel text-lg md:text-xl text-amber-300 font-bold tracking-wide">Lời Giải Thông Điệp Tarot</h2>
+                        <p id="readingQuestionTag" class="text-xs text-purple-300/70 italic"></p>
+                    </div>
+                </div>
+
+                <!-- Loading Spinner -->
+                <div id="loadingState" class="py-12 flex flex-col items-center justify-center space-y-4">
+                    <div class="relative w-16 h-16">
+                        <div class="absolute inset-0 rounded-full border-2 border-amber-500/20"></div>
+                        <div class="absolute inset-0 rounded-full border-2 border-amber-400 border-t-transparent animate-spin"></div>
+                        <i data-lucide="sun" class="absolute inset-0 m-auto w-6 h-6 text-amber-400 animate-pulse"></i>
+                    </div>
+                    <p class="font-cinzel text-amber-200/80 text-sm tracking-widest animate-pulse">Vũ trụ đang kết nối thông điệp...</p>
+                </div>
+
+                <!-- Interpretation Text Output -->
+                <div id="readingContent" class="prose prose-invert max-w-none text-purple-100/90 leading-relaxed space-y-4 text-sm md:text-base">
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer class="relative z-10 py-6 text-center text-xs text-amber-400/40 font-cinzel tracking-widest">
+        <span>✨ MYSTICAL TAROT READINGS ✨</span>
+    </footer>
+
+    <!-- Application Script -->
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        /* -------------------------------------------------------------------------- */
+        /* 1. 78 TAROT CARDS DATASET (Wikimedia Rider-Waite Cards - 100% Unique URLs) */
+        /* -------------------------------------------------------------------------- */
+        const TAROT_DECK = [
+            // MAJOR ARCANA (22)
+            { name: "The Fool (Kẻ Khờ)", nameVi: "0 - Kẻ Khờ", img: "https://upload.wikimedia.org/wikipedia/commons/9/90/RWT_Tarot_00_Fool.jpg", arcana: "Major" },
+            { name: "The Magician (Nhà Ảo Thuật)", nameVi: "I - Nhà Ảo Thuật", img: "https://upload.wikimedia.org/wikipedia/commons/d/de/RWT_Tarot_01_Magician.jpg", arcana: "Major" },
+            { name: "The High Priestess (Nữ Tư Tế)", nameVi: "II - Nữ Tư Tế", img: "https://upload.wikimedia.org/wikipedia/commons/8/88/RWT_Tarot_02_High_Priestess.jpg", arcana: "Major" },
+            { name: "The Empress (Hoàng Hậu)", nameVi: "III - Hoàng Hậu", img: "https://upload.wikimedia.org/wikipedia/commons/d/d2/RWT_Tarot_03_Empress.jpg", arcana: "Major" },
+            { name: "The Emperor (Hoàng Đế)", nameVi: "IV - Hoàng Đế", img: "https://upload.wikimedia.org/wikipedia/commons/c/c3/RWT_Tarot_04_Emperor.jpg", arcana: "Major" },
+            { name: "The Hierophant (Giáo Hoàng)", nameVi: "V - Giáo Hoàng", img: "https://upload.wikimedia.org/wikipedia/commons/8/8d/RWT_Tarot_05_Hierophant.jpg", arcana: "Major" },
+            { name: "The Lovers (Tình Nhân)", nameVi: "VI - Tình Nhân", img: "https://upload.wikimedia.org/wikipedia/commons/3/3a/TheLovers.jpg", arcana: "Major" },
+            { name: "The Chariot (Cỗ Xe Kéo)", nameVi: "VII - Cỗ Xe Kéo", img: "https://upload.wikimedia.org/wikipedia/commons/9/9b/RWT_Tarot_07_Chariot.jpg", arcana: "Major" },
+            { name: "Strength (Sức Mạnh)", nameVi: "VIII - Sức Mạnh", img: "https://upload.wikimedia.org/wikipedia/commons/f/f5/RWT_Tarot_08_Strength.jpg", arcana: "Major" },
+            { name: "The Hermit (Ẩn Sĩ)", nameVi: "IX - Ẩn Sĩ", img: "https://upload.wikimedia.org/wikipedia/commons/4/4d/RWT_Tarot_09_Hermit.jpg", arcana: "Major" },
+            { name: "Wheel of Fortune (Vòng Quay Vận Mệnh)", nameVi: "X - Vòng Quay Vận Mệnh", img: "https://upload.wikimedia.org/wikipedia/commons/3/3c/RWT_Tarot_10_Wheel_of_Fortune.jpg", arcana: "Major" },
+            { name: "Justice (Công Lý)", nameVi: "XI - Công Lý", img: "https://upload.wikimedia.org/wikipedia/commons/e/e0/RWT_Tarot_11_Justice.jpg", arcana: "Major" },
+            { name: "The Hanged Man (Người Treo Ngược)", nameVi: "XII - Người Treo Ngược", img: "https://upload.wikimedia.org/wikipedia/commons/2/2b/RWT_Tarot_12_Hanged_Man.jpg", arcana: "Major" },
+            { name: "Death (Cái Chết)", nameVi: "XIII - Cái Chết", img: "https://upload.wikimedia.org/wikipedia/commons/d/d7/RWT_Tarot_13_Death.jpg", arcana: "Major" },
+            { name: "Temperance (Tự Cân Bằng)", nameVi: "XIV - Tự Cân Bằng", img: "https://upload.wikimedia.org/wikipedia/commons/f/f8/RWT_Tarot_14_Temperance.jpg", arcana: "Major" },
+            { name: "The Devil (Ác Quỷ)", nameVi: "XV - Ác Quỷ", img: "https://upload.wikimedia.org/wikipedia/commons/5/55/RWT_Tarot_15_Devil.jpg", arcana: "Major" },
+            { name: "The Tower (Tòa Tháp)", nameVi: "XVI - Tòa Tháp", img: "https://upload.wikimedia.org/wikipedia/commons/5/53/RWT_Tarot_16_Tower.jpg", arcana: "Major" },
+            { name: "The Star (Ngôi Sao)", nameVi: "XVII - Ngôi Sao", img: "https://upload.wikimedia.org/wikipedia/commons/d/db/RWT_Tarot_17_Star.jpg", arcana: "Major" },
+            { name: "The Moon (Mặt Trăng)", nameVi: "XVIII - Mặt Trăng", img: "https://upload.wikimedia.org/wikipedia/commons/7/7f/RWT_Tarot_18_Moon.jpg", arcana: "Major" },
+            { name: "The Sun (Mặt Trời)", nameVi: "XIX - Mặt Trời", img: "https://upload.wikimedia.org/wikipedia/commons/1/17/RWT_Tarot_19_Sun.jpg", arcana: "Major" },
+            { name: "Judgement (Phán Xét)", nameVi: "XX - Phán Xét", img: "https://upload.wikimedia.org/wikipedia/commons/d/dd/RWT_Tarot_20_Judgement.jpg", arcana: "Major" },
+            { name: "The World (Thế Giới)", nameVi: "XXI - Thế Giới", img: "https://upload.wikimedia.org/wikipedia/commons/ff/ff/RWT_Tarot_21_World.jpg", arcana: "Major" },
+
+            // SUIT OF WANDS (14)
+            { name: "Ace of Wands", nameVi: "Ace of Wands (1 Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/1/11/Wands01.jpg", arcana: "Minor" },
+            { name: "Two of Wands", nameVi: "Two of Wands (2 Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/0/0f/Wands02.jpg", arcana: "Minor" },
+            { name: "Three of Wands", nameVi: "Three of Wands (3 Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/ff/ff/Wands03.jpg", arcana: "Minor" },
+            { name: "Four of Wands", nameVi: "Four of Wands (4 Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/a/a4/Wands04.jpg", arcana: "Minor" },
+            { name: "Five of Wands", nameVi: "Five of Wands (5 Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/9/9d/Wands05.jpg", arcana: "Minor" },
+            { name: "Six of Wands", nameVi: "Six of Wands (6 Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/3/3b/Wands06.jpg", arcana: "Minor" },
+            { name: "Seven of Wands", nameVi: "Seven of Wands (7 Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/e/e4/Wands07.jpg", arcana: "Minor" },
+            { name: "Eight of Wands", nameVi: "Eight of Wands (8 Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/6/6b/Wands08.jpg", arcana: "Minor" },
+            { name: "Nine of Wands", nameVi: "Nine of Wands (9 Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/4/4d/Wands09.jpg", arcana: "Minor" },
+            { name: "Ten of Wands", nameVi: "Ten of Wands (10 Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/0/0b/Wands10.jpg", arcana: "Minor" },
+            { name: "Page of Wands", nameVi: "Page of Wands (Tiểu Đệ Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/6/6a/Wands11.jpg", arcana: "Minor" },
+            { name: "Knight of Wands", nameVi: "Knight of Wands (Hiệp Sĩ Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/1/16/Wands12.jpg", arcana: "Minor" },
+            { name: "Queen of Wands", nameVi: "Queen of Wands (Nữ Hoàng Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/0/0d/Wands13.jpg", arcana: "Minor" },
+            { name: "King of Wands", nameVi: "King of Wands (Vua Gậy)", img: "https://upload.wikimedia.org/wikipedia/commons/ce/ce/Wands14.jpg", arcana: "Minor" },
+
+            // SUIT OF CUPS (14)
+            { name: "Ace of Cups", nameVi: "Ace of Cups (1 Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/3/36/Cups01.jpg", arcana: "Minor" },
+            { name: "Two of Cups", nameVi: "Two of Cups (2 Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/f/f8/Cups02.jpg", arcana: "Minor" },
+            { name: "Three of Cups", nameVi: "Three of Cups (3 Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/7/7a/Cups03.jpg", arcana: "Minor" },
+            { name: "Four of Cups", nameVi: "Four of Cups (4 Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/3/35/Cups04.jpg", arcana: "Minor" },
+            { name: "Five of Cups", nameVi: "Five of Cups (5 Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/d/d7/Cups05.jpg", arcana: "Minor" },
+            { name: "Six of Cups", nameVi: "Six of Cups (6 Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/1/17/Cups06.jpg", arcana: "Minor" },
+            { name: "Seven of Cups", nameVi: "Seven of Cups (7 Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/a/ae/Cups07.jpg", arcana: "Minor" },
+            { name: "Eight of Cups", nameVi: "Eight of Cups (8 Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/6/60/Cups08.jpg", arcana: "Minor" },
+            { name: "Nine of Cups", nameVi: "Nine of Cups (9 Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/2/24/Cups09.jpg", arcana: "Minor" },
+            { name: "Ten of Cups", nameVi: "Ten of Cups (10 Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/8/84/Cups10.jpg", arcana: "Minor" },
+            { name: "Page of Cups", nameVi: "Page of Cups (Tiểu Đệ Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/a/ad/Cups11.jpg", arcana: "Minor" },
+            { name: "Knight of Cups", nameVi: "Knight of Cups (Hiệp Sĩ Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Cups12.jpg", arcana: "Minor" },
+            { name: "Queen of Cups", nameVi: "Queen of Cups (Nữ Hoàng Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/6/62/Cups13.jpg", arcana: "Minor" },
+            { name: "King of Cups", nameVi: "King of Cups (Vua Cốc)", img: "https://upload.wikimedia.org/wikipedia/commons/0/04/Cups14.jpg", arcana: "Minor" },
+
+            // SUIT OF SWORDS (14)
+            { name: "Ace of Swords", nameVi: "Ace of Swords (1 Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/1/1a/Swords01.jpg", arcana: "Minor" },
+            { name: "Two of Swords", nameVi: "Two of Swords (2 Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Swords02.jpg", arcana: "Minor" },
+            { name: "Three of Swords", nameVi: "Three of Swords (3 Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/0/02/Swords03.jpg", arcana: "Minor" },
+            { name: "Four of Swords", nameVi: "Four of Swords (4 Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/b/bf/Swords04.jpg", arcana: "Minor" },
+            { name: "Five of Swords", nameVi: "Five of Swords (5 Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/2/23/Swords05.jpg", arcana: "Minor" },
+            { name: "Six of Swords", nameVi: "Six of Swords (6 Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/2/29/Swords06.jpg", arcana: "Minor" },
+            { name: "Seven of Swords", nameVi: "Seven of Swords (7 Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/3/34/Swords07.jpg", arcana: "Minor" },
+            { name: "Eight of Swords", nameVi: "Eight of Swords (8 Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/a/a7/Swords08.jpg", arcana: "Minor" },
+            { name: "Nine of Swords", nameVi: "Nine of Swords (9 Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Swords09.jpg", arcana: "Minor" },
+            { name: "Ten of Swords", nameVi: "Ten of Swords (10 Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/d/d4/Swords10.jpg", arcana: "Minor" },
+            { name: "Page of Swords", nameVi: "Page of Swords (Tiểu Đệ Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/4/4c/Swords11.jpg", arcana: "Minor" },
+            { name: "Knight of Swords", nameVi: "Knight of Swords (Hiệp Sĩ Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/b/b0/Swords12.jpg", arcana: "Minor" },
+            { name: "Queen of Swords", nameVi: "Queen of Swords (Nữ Hoàng Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/d/d1/Swords13.jpg", arcana: "Minor" },
+            { name: "King of Swords", nameVi: "King of Swords (Vua Kiếm)", img: "https://upload.wikimedia.org/wikipedia/commons/3/33/Swords14.jpg", arcana: "Minor" },
+
+            // SUIT OF PENTACLES (14)
+            { name: "Ace of Pentacles", nameVi: "Ace of Pentacles (1 Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/f/fd/Pents01.jpg", arcana: "Minor" },
+            { name: "Two of Pentacles", nameVi: "Two of Pentacles (2 Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/9/9f/Pents02.jpg", arcana: "Minor" },
+            { name: "Three of Pentacles", nameVi: "Three of Pentacles (3 Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/4/42/Pents03.jpg", arcana: "Minor" },
+            { name: "Four of Pentacles", nameVi: "Four of Pentacles (4 Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/3/3b/Pents04.jpg", arcana: "Minor" },
+            { name: "Five of Pentacles", nameVi: "Five of Pentacles (5 Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/9/96/Pents05.jpg", arcana: "Minor" },
+            { name: "Six of Pentacles", nameVi: "Six of Pentacles (6 Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/a/a6/Pents06.jpg", arcana: "Minor" },
+            { name: "Seven of Pentacles", nameVi: "Seven of Pentacles (7 Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/6/6a/Pents07.jpg", arcana: "Minor" },
+            { name: "Eight of Pentacles", nameVi: "Eight of Pentacles (8 Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/4/49/Pents08.jpg", arcana: "Minor" },
+            { name: "Nine of Pentacles", nameVi: "Nine of Pentacles (9 Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/f/f0/Pents09.jpg", arcana: "Minor" },
+            { name: "Ten of Pentacles", nameVi: "Ten of Pentacles (10 Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/4/42/Pents10.jpg", arcana: "Minor" },
+            { name: "Page of Pentacles", nameVi: "Page of Pentacles (Tiểu Đệ Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/e/ec/Pents11.jpg", arcana: "Minor" },
+            { name: "Knight of Pentacles", nameVi: "Knight of Pentacles (Hiệp Sĩ Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/d/d5/Pents12.jpg", arcana: "Minor" },
+            { name: "Queen of Pentacles", nameVi: "Queen of Pentacles (Nữ Hoàng Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/8/88/Pents13.jpg", arcana: "Minor" },
+            { name: "King of Pentacles", nameVi: "King of Pentacles (Vua Tiền)", img: "https://upload.wikimedia.org/wikipedia/commons/1/1c/Pents14.jpg", arcana: "Minor" }
+        ];
+
+        /* -------------------------------------------------------------------------- */
+        /* 2. STATE & UI SETUP                                                       */
+        /* -------------------------------------------------------------------------- */
+        let selectedCount = 3; // Default 3 cards
+        let currentDrawnCards = [];
+
+        // Build Card Selector Buttons 1-9
+        const cardCountGroup = document.getElementById('cardCountGroup');
+        for (let i = 1; i <= 9; i++) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `w-8 h-8 rounded-lg font-cinzel text-xs font-bold transition-all border ${
+                i === selectedCount 
+                ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-500/30 scale-105' 
+                : 'bg-slate-900/60 text-amber-200/70 border-amber-500/20 hover:border-amber-400 hover:text-amber-200'
+            }`;
+            btn.innerText = i;
+            btn.onclick = () => {
+                selectedCount = i;
+                Array.from(cardCountGroup.children).forEach((child, idx) => {
+                    const active = (idx + 1) === selectedCount;
+                    child.className = `w-8 h-8 rounded-lg font-cinzel text-xs font-bold transition-all border ${
+                        active 
+                        ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-500/30 scale-105' 
+                        : 'bg-slate-900/60 text-amber-200/70 border-amber-500/20 hover:border-amber-400 hover:text-amber-200'
+                    }`;
+                });
+            };
+            cardCountGroup.appendChild(btn);
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 3. STARRY CANVAS ANIMATION                                                */
+        /* -------------------------------------------------------------------------- */
+        const canvas = document.getElementById('starsCanvas');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initStars();
+        }
+
+        function initStars() {
+            stars = [];
+            const numStars = Math.floor((canvas.width * canvas.height) / 3000);
+            for (let i = 0; i < numStars; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 1.8 + 0.2,
+                    alpha: Math.random(),
+                    speed: Math.random() * 0.015 + 0.005
+                });
+            }
+        }
+
+        function drawStars() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            stars.forEach(star => {
+                star.alpha += star.speed;
+                if (star.alpha > 1 || star.alpha < 0) star.speed = -star.speed;
+                ctx.fillStyle = `rgba(212, 175, 55, ${Math.abs(star.alpha) * 0.7})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            requestAnimationFrame(drawStars);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        drawStars();
+
+        /* -------------------------------------------------------------------------- */
+        /* 4. 3D MOUSE & GYROSCOPE TILT INTERACTION                                  */
+        /* -------------------------------------------------------------------------- */
+        const tiltContainer = document.getElementById('tiltContainer');
+
+        // Mouse tilt
+        window.addEventListener('mousemove', (e) => {
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            const dx = (e.clientX - cx) / cx;
+            const dy = (e.clientY - cy) / cy;
+
+            const rotX = dy * -8;
+            const rotY = dx * 8;
+
+            tiltContainer.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+        });
+
+        // Mobile Gyroscope tilt
+        if (window.DeviceOrientationEvent) {
+            window.addEventListener('deviceorientation', (e) => {
+                if (e.beta !== null && e.gamma !== null) {
+                    const rotX = Math.min(Math.max((e.beta - 45) * 0.2, -10), 10);
+                    const rotY = Math.min(Math.max(e.gamma * 0.2, -10), 10);
+                    tiltContainer.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+                }
+            });
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 5. 3D CIRCULAR VORTEX SHUFFLE & DRAW LOGIC                                */
+        /* -------------------------------------------------------------------------- */
+        const cardsLayout = document.getElementById('cardsLayout');
+        const drawBtn = document.getElementById('drawBtn');
+
+        drawBtn.addEventListener('click', startShuffleAndDraw);
+
+        function startShuffleAndDraw() {
+            const question = document.getElementById('questionInput').value.trim();
+            
+            // Hide reading section during new draw
+            document.getElementById('readingSection').classList.add('hidden');
+            cardsLayout.innerHTML = '';
+
+            // Pick N unique cards randomly from the 78 deck
+            const shuffledDeck = [...TAROT_DECK].sort(() => Math.random() - 0.5);
+            currentDrawnCards = shuffledDeck.slice(0, selectedCount).map(card => ({
+                ...card,
+                isReversed: Math.random() < 0.4 // 40% chance of Reversed
+            }));
+
+            // Create Card elements for Vortex animation
+            const cardElements = [];
+            currentDrawnCards.forEach((cardData, idx) => {
+                const cardWrapper = document.createElement('div');
+                cardWrapper.className = 'card-container transition-all duration-700';
+
+                const card = document.createElement('div');
+                card.className = `tarot-card ${cardData.isReversed ? 'reversed' : ''}`;
+                card.dataset.index = idx;
+
+                card.innerHTML = `
+                    <div class="card-face card-back">
+                        <div class="w-full h-full p-2 flex flex-col justify-between items-center border border-amber-500/30 rounded-lg">
+                            <i data-lucide="sun" class="w-5 h-5 text-amber-400/50"></i>
+                            <div class="w-10 h-10 rounded-full border border-amber-400/40 flex items-center justify-center">
+                                <i data-lucide="sparkles" class="w-5 h-5 text-amber-300/70"></i>
+                            </div>
+                            <i data-lucide="moon" class="w-5 h-5 text-amber-400/50"></i>
+                        </div>
+                    </div>
+                    <div class="card-face card-front">
+                        <img src="${cardData.img}" alt="${cardData.name}" class="w-full h-full object-cover rounded-lg" onerror="this.src='https://placehold.co/160x280/1a0033/d4af37?text=Tarot+Card'">
+                        <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 text-center">
+                            <span class="block text-[11px] font-cinzel text-amber-300 font-bold leading-tight">${cardData.nameVi}</span>
+                            <span class="block text-[9px] text-amber-400/80 uppercase tracking-widest mt-0.5">${cardData.isReversed ? 'Ngược ↺' : 'Xuôi ➔'}</span>
+                        </div>
+                    </div>
+                `;
+
+                cardWrapper.appendChild(card);
+                cardsLayout.appendChild(cardWrapper);
+                cardElements.push(cardWrapper);
+            });
+
+            lucide.createIcons();
+
+            // Run 3D Flying Circular Vortex Animation
+            animateVortex(cardElements, () => {
+                // Reveal & Flip Cards sequentially
+                cardElements.forEach((wrapper, index) => {
+                    setTimeout(() => {
+                        const card = wrapper.querySelector('.tarot-card');
+                        card.classList.add('flipped');
+                    }, index * 250);
+                });
+
+                // Request Gemini Interpretation after flip completes
+                setTimeout(() => {
+                    fetchGeminiInterpretation(question, currentDrawnCards);
+                }, cardElements.length * 250 + 400);
+            });
+        }
+
+        /* 3D Circular Floating Vortex Animation */
+        function animateVortex(elements, onComplete) {
+            const startTime = performance.now();
+            const duration = 2200; // 2.2s vortex shuffle
+
+            function step(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                elements.forEach((el, i) => {
+                    // Spiral vortex mathematics
+                    const angle = (progress * Math.PI * 6) + (i * (Math.PI * 2 / elements.length));
+                    const radius = (1 - Math.pow(progress - 0.5, 2) * 4) * 160 + 40; 
+                    const flyY = Math.sin(progress * Math.PI) * -120;
+                    const rotateZ = angle * (180 / Math.PI);
+                    const rotateX = Math.sin(angle) * 35;
+
+                    if (progress < 1) {
+                        el.style.transform = `translate3d(${Math.cos(angle) * radius}px, ${Math.sin(angle) * radius + flyY}px, ${Math.sin(angle) * 100}px) rotateZ(${rotateZ}deg) rotateX(${rotateX}deg) scale(${0.8 + Math.sin(progress * Math.PI) * 0.3})`;
+                    } else {
+                        // Smoothly reset back to deal layout position
+                        el.style.transform = 'translate3d(0, 0, 0) rotateZ(0deg) rotateX(0deg) scale(1)';
+                    }
+                });
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    if (onComplete) onComplete();
+                }
+            }
+
+            requestAnimationFrame(step);
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 6. GEMINI API INTEGRATION FOR TAROT READING                               */
+        /* -------------------------------------------------------------------------- */
+        async function fetchGeminiInterpretation(question, cards) {
+            const readingSection = document.getElementById('readingSection');
+            const loadingState = document.getElementById('loadingState');
+            const readingContent = document.getElementById('readingContent');
+            const readingQuestionTag = document.getElementById('readingQuestionTag');
+
+            readingSection.classList.remove('hidden');
+            loadingState.classList.remove('hidden');
+            readingContent.innerHTML = '';
+            readingQuestionTag.innerText = question ? `"${question}"` : 'Thông điệp tổng quan từ các lá bài';
+
+            // Construct card description strings
+            const cardsDescription = cards.map((c, i) => 
+                `Lá ${i+1}: ${c.nameVi} (${c.name}) - Trạng thái: ${c.isReversed ? 'NGƯỢC (Reversed)' : 'XUÔI (Upright)'}`
+            ).join('\n');
+
+            const systemPrompt = `Bạn là một Reader Tarot chuyên nghiệp, sâu sắc, huyền bí và mang năng lượng chữa lành. 
+Hãy giải bài Tarot dựa trên các lá bài được bốc và câu hỏi của người dùng.
+Yêu cầu trình bày:
+- Viết bằng tiếng Việt tinh tế, mang không khí huyền ảo, ấm áp.
+- Phân tích chi tiết ý nghĩa từng lá bài trong ngữ cảnh câu hỏi.
+- Tổng kết thông điệp chính và đưa ra lời khuyên chân thành từ vũ trụ.
+- Sử dụng định dạng HTML với các thẻ <h3>, <p>, <ul>, <li>, <strong> để trình bày đẹp mắt. Không dùng markdown backticks (\`\`\`).`;
+
+            const userPrompt = `Câu hỏi của tôi: "${question || 'Hãy cho tôi thông điệp tổng quan về cuộc sống hiện tại'}"
+Danh sách lá bài đã bốc được (${cards.length} lá):
+${cardsDescription}`;
+
+            const apiKey = ""; // Canvas runtime automatically handles this
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            // Fetch with Exponential Backoff retry strategy
+            let response = null;
+            let retries = 0;
+            const maxRetries = 3;
+            let delay = 1000;
+
+            while (retries < maxRetries) {
+                try {
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (res.ok) {
+                        response = await res.json();
+                        break;
+                    }
+                } catch (err) {
+                    console.error("Gemini API attempt error:", err);
+                }
+                retries++;
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 2;
+            }
+
+            loadingState.classList.add('hidden');
+
+            if (response && response.candidates && response.candidates[0]?.content?.parts[0]?.text) {
+                let htmlText = response.candidates[0].content.parts[0].text;
+                // Clean markdown codeblocks if model returned any
+                htmlText = htmlText.replace(/```html/g, '').replace(/```/g, '').trim();
+                readingContent.innerHTML = htmlText;
+            } else {
+                // Fallback Interpretation if API unavailable
+                readingContent.innerHTML = `
+                    <div class="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5">
+                        <h3 class="text-amber-300 font-cinzel text-base font-bold mb-2">Thông Điệp Vũ Trụ (Offline Mode)</h3>
+                        <p>Vũ trụ đã gửi gắm năng lượng qua <strong>${cards.length} lá bài</strong> bạn vừa chọn:</p>
+                        <ul class="list-disc list-inside space-y-1 my-3 text-amber-200/90">
+                            ${cards.map(c => `<li><strong>${c.nameVi}</strong> (${c.isReversed ? 'Ngược' : 'Xuôi'})</li>`).join('')}
+                        </ul>
+                        <p>Các lá bài phản ánh một giai đoạn biến chuyển mạnh mẽ. Trạng thái xuôi mang lại năng lượng chủ động, trong khi trạng thái ngược nhắc nhở bạn quan sát kỹ lưỡng thế giới nội tâm trước khi đưa ra quyết định quan trọng.</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
